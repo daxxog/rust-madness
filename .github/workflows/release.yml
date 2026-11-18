@@ -27,10 +27,14 @@ jobs:
       - name: Check out the public repository
         uses: actions/checkout@v4
 
-      - name: Install podman (GitHub runners do not ship it)
+      - name: Install podman, Xvfb and the Linux link headers
         run: |
           sudo apt-get update
-          sudo apt-get install -y podman xvfb
+          # libasound2-dev + libudev-dev: the gates job also builds the
+          # whole workspace, whose Linux stack links system ALSA (cpal)
+          # and udev (gilrs) - the macOS gates use CoreAudio/IOHIDKit
+          # instead (found in the launch rehearsal).
+          sudo apt-get install -y podman xvfb libasound2-dev libudev-dev
 
       # tools/decompile.sh cds to its own repo root, builds tools/Dockerfile
       # (VINEFLOWER_VERSION=1.10.1) and writes reference/ into that root.

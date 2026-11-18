@@ -116,6 +116,16 @@ jobs:
       - name: Check out the public repository
         uses: actions/checkout@v4
 
+      # The mirrors build every workspace member, and on Linux nfm-render's
+      # stack links system ALSA (cpal) and udev (gilrs) - the macOS builds
+      # use CoreAudio/IOHIDKit instead, which is why local mac gates never
+      # saw this. The release build job installs these for its Linux leg;
+      # the gates need them too (found in the launch rehearsal).
+      - name: Install the Linux audio/input dev headers
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libasound2-dev libudev-dev
+
       - name: Ensure stable toolchain with rustfmt
         run: |
           rustup toolchain install stable --profile minimal --component rustfmt
