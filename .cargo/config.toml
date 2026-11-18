@@ -1,0 +1,11 @@
+# The raw-wasm import contract (crates/nfm-web).
+#
+# nfm-web declares its JS bridge as undefined `extern "C"` symbols
+# (js_now_ms, js_log, js_ls_get, js_ls_set): the glue's
+# WebAssembly.instantiate imports object supplies them at load time —
+# they are imports, not link errors. Older rustc passed wasm-ld
+# --allow-undefined implicitly; rustc 1.100 links strictly and errors
+# on the undefined symbols, so the import semantics are restored
+# explicitly here. Scoped to the wasm target: host builds never see it.
+[target.wasm32-unknown-unknown]
+rustflags = ["-C", "link-arg=--allow-undefined"]

@@ -61,6 +61,12 @@ done
 for file in mad.jar Cargo.toml Cargo.lock; do
   cp -p "$ROOT/$file" "$DEST/$file" || die "failed to copy $file"
 done
+# .cargo/config.toml carries the wasm target's link flag (the raw-import
+# contract for nfm-web) - without it, rustc >= 1.100 fails the wasm link.
+if [[ -d "$ROOT/.cargo" ]]; then
+  mkdir -p "$DEST/.cargo"
+  rsync -a --delete "$ROOT/.cargo/" "$DEST/.cargo/" || die "rsync failed for .cargo/"
+fi
 
 # overlay public/* onto the DEST root (dotfiles and dot-directories too:
 # .gitignore, .github/ - the latter is a tree, so sync it instead of cp)
