@@ -30,7 +30,7 @@ jobs:
       - name: Install podman (GitHub runners do not ship it)
         run: |
           sudo apt-get update
-          sudo apt-get install -y podman
+          sudo apt-get install -y podman xvfb
 
       # tools/decompile.sh cds to its own repo root, builds tools/Dockerfile
       # (VINEFLOWER_VERSION=1.10.1) and writes reference/ into that root.
@@ -54,26 +54,42 @@ jobs:
       # deploy.jar beside it for the container leg); Oracle 8u40's proprietary
       # plugin/deploy jars are absent from Temurin 8. Build both jars from this
       # repo's own compile-time stubs and point JAVA8_HOME at the resulting
-      # minimal JDK-shaped directory. Local equivalence proof (batch G1): both
-      # gate legs' logs were BYTE-IDENTICAL to the Oracle-jar baseline at 4792/0
-      # and the pixel gate was 172/0 (only its pump wall-time line differed).
+      # minimal JDK-shaped directory.
+      # RUNTIME note (the launch rehearsal's find): the suite's run classpath
+      # is exactly target/java-tests (java-tests.sh), and Oracle 8u40 on the
+      # mac resolved JSObject from jre/lib/ext/jfxrt.jar (JavaFX carries the
+      # LiveConnect classes) - Temurin 8 has no JavaFX, so the stub classes
+      # must ALSO be compiled into target/java-tests to ride the suite's own
+      # runtime classpath. Without this, TGameSparkerLogic dies at
+      # GameSparker.readcookie with NoClassDefFoundError.
       - name: Build hermetic stub plugin/deploy jars
         run: |
           STAGE="$GITHUB_WORKSPACE/target/probe-jdk8"
-          mkdir -p "$STAGE/jre/lib" "$STAGE/build"
+          mkdir -p "$STAGE/jre/lib" "$STAGE/build" target/java-tests
           javac -d "$STAGE/build" \
             tools/javac-stubs/netscape/javascript/JSObject.java \
             tools/javac-stubs/sun/audio/AudioPlayer.java
           (cd "$STAGE/build" \
             && jar cf "$STAGE/jre/lib/plugin.jar" . \
             && jar cf "$STAGE/jre/lib/deploy.jar" .)
+          javac -d target/java-tests \
+            tools/javac-stubs/netscape/javascript/JSObject.java \
+            tools/javac-stubs/sun/audio/AudioPlayer.java
           echo "JAVA8_HOME=$STAGE" >> "$GITHUB_ENV"
 
       # The catb0t Simple Car.rad fixture is carried by public-export.sh as one
       # explicit, citable third-party carve-out. Without it TContO aborts at
       # 1508/0; with it the unchanged suite reaches 4792/0 on both legs.
+      # The original code instantiates real Applets and demands a headful AWT
+      # (java-tests.sh:97) - a bare runner has no display. The fix uses the
+      # gate script's own container-leg pattern (Xvfb + DISPLAY=:99): pin-
+      # certified headful behavior, no xvfb-run wrapper (which hangs in its
+      # readiness wait on some images - diagnosed in the launch rehearsal).
       - name: Java behavior gate, local leg - expect 4792/0
-        run: tools/java-tests.sh
+        run: |
+          Xvfb :99 -screen 0 1280x1024x24 -nolisten tcp &
+          export DISPLAY=:99
+          tools/java-tests.sh
 
       # The pixel gate runs in the Temurin-8 container, which carries the font
       # authority: one shipped font file, one fontconfig mapping, md5-pinned
