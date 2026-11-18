@@ -1,5 +1,9 @@
 # rust-madness — a Rust port of the 2006 Java applet Need for Madness
 
+<p align="center">
+  <img src="site/hello.gif" alt="Need for Madness — the game's own opening screen">
+</p>
+
 A byte-faithful Rust port of **Need for Madness**, the 2006 Java browser
 applet. It rebuilds the original's engine, renderer and tracker-music player
 from the distributed `mad.jar` and the game's server-side asset bundle, then
