@@ -1,0 +1,87 @@
+# pixel.toml - the pixel-platform manifest (tests/fixtures/toml/README.md).
+#
+# Single source of truth for the pixel platform's static values: the glyph
+# atlas geometry/format/digests, the two font-probe raster-equality pins, and
+# the [frames] reference block. Consumed by tests/pixel/PixelSuite.java (the
+# ONE loader: the static finals PIXEL/ATLAS/PROBES/FRAMES, loaded at class init
+# before main()'s seed statement; Toml consumes no Math.random, so the
+# TJavaRandom injection ordering is unaffected) and, in Phase B, the Rust
+# raster tests. PixelRace.java holds no pixel-platform constant of its own
+# (its seed is determinism.toml [seed] pixel_main), so it reads nothing here.
+#
+# Transcribed VERBATIM from tests/pixel/PixelSuite.java and the committed
+# artifacts (tests/fixtures/xtfont-atlas/atlas.txt, tests/pixel/expected.md5);
+# the gate (tools/pixel-tests.sh) is the transcription proof.
+#
+# THE PIXEL TWO-FILE CONTRACT (README): the frame-pin md5 ROWS are NOT here.
+# They stay in tests/pixel/expected.md5, which is the --bless artifact and the
+# pixel gate's row source; [frames] below only REFERENCES that file.
+
+# ── the glyph atlas: tests/fixtures/xtfont-atlas/ ─────────────────────────
+# Geometry transcribed from PixelSuite.java:492-499 (CELL_W, CELL_H, GLYPH_DX,
+# BASELINE, CP_MIN, CP_MAX, GLYPHS, SIZES) and repeated by the committed
+# atlas.txt header (format xtfont-atlas/1: 95 columns x 2 rows of 20x22 cells,
+# row 0 = 13pt bold, row 1 = 11pt bold). atlasVerify() asserts these against
+# atlas.txt (atlas_*_matches_suite), so a manifest/artifact disagreement fails
+# the gate loudly.
+[atlas]
+columns = 95        # GLYPHS = codepoint_max - codepoint_min + 1; atlas.txt columns=95
+rows = 2            # row count: 13pt bold then 11pt bold; atlas.txt rows=2
+cell_w = 20         # CELL_W (atlas.txt cell_width=20)
+cell_h = 22         # CELL_H (atlas.txt cell_height=22)
+glyph_dx = 1        # GLYPH_DX: drawString x offset inside the cell (atlas.txt cell_dx_px)
+baseline = 16       # BASELINE: drawString y baseline inside the cell (atlas.txt baseline=16)
+codepoint_min = 32  # CP_MIN = 0x20 (space)
+codepoint_max = 126 # CP_MAX = 0x7e ('~'); the atlas covers ASCII 32..126 inclusive
+sizes = [13, 11]    # SIZES, per row: the only two sizes the original asks for
+                    # (xtGraphics.java:1109,3398,3570,...); atlas.txt row0_size/row1_size
+format = "xtfont-atlas/1"                        # atlas.txt format tag (atlas_format_tag)
+ttf_path = "tools/fonts/LiberationSans-Bold.ttf" # shipped face mapped over logical SansSerif bold
+sha256_ttf = "788abee4c806d660e8aee46689dd8540cd4bb98da03dcc9d171ce3efd99a9173"
+                    # font_source_ttf_sha256 / atlas_manifest_ttf_sha256; atlas.txt sha256_ttf
+sha256_png = "0625138d319b96df6245e552955f770a475db02a5e76baf36351b75ab606522d"
+                    # atlas.png (atlas_png_matches_manifest); atlas.txt sha256_png
+sha256_manifest = "32b4f1a8e2bcc84fc60d9a23c18cbdfa6856aff59428a5c406bbe3eaac74d18f"
+                    # atlas.txt itself; it is also the blessed pin row
+                    # atlas_manifest_sha256 in expected.md5 - the verify gate
+                    # proves the two agree (atlas_txt_sha256_matches_manifest)
+
+# ── pin #1: the font-probe raster-equality values ─────────────────────────
+# fontProbe() renders "The Introductory Stage" black-on-white at (10,40) into
+# a full 550x400 TYPE_INT_RGB frame twice per size: the LOGICAL
+# new Font("SansSerif", BOLD, N) and the PHYSICAL
+# Font.createFont(LiberationSans-Bold).deriveFont(N).deriveFont(BOLD). The
+# raster equality is asserted (font_sansserif_bold_13/11_raster_equals...) and
+# the LOGICAL frame's md5 is pinned. These are those pin values, transcribed
+# verbatim from tests/pixel/expected.md5 (rows font_probe_13_md5 /
+# font_probe_11_md5); verify mode cross-checks each against the freshly
+# rendered md5 (_matches_manifest), so the manifest cannot drift from the
+# blessed rows.
+[probes]
+font_probe_13_md5 = "8e6e6346f65daf5dff99a7cfa7ff70fe"
+font_probe_11_md5 = "fbdf8b03d50d4208ac45637cbb44a13b"
+
+# ── the frame-pin reference (the two-file contract) ───────────────────────
+# expected.md5 is the --bless artifact and stays the ONLY copy of its rows
+# (<stable_snake_case_id> <md5-or-scalar>, one per line). They are NOT
+# duplicated here - this block only references the file. row_count is that
+# file's DATA-row count under the loader's exact rule (PixelSuite.loadExpected:
+# trim, skip blank lines and lines starting with '#', skip lines without a
+# space): 84 rows today, which is also the PINNED pin count
+# (expected_md5_row_count_matches_pins) and the number of md5/scalar outputs
+# the suite emits (the gate line's 172 = 84 pins + 88 structural checks, B12
+# §2; a gate pass counts checks, not rows). Verify mode cross-checks this
+# row_count against the rows actually loaded
+# (frames_row_count_matches_expected_file).
+[frames]
+file = "tests/pixel/expected.md5"
+row_count = 84
+
+# ── the reference frame geometry (added T2) ──────────────────────────────
+# The pixel platform's canvas: every screen/font-probe md5 in expected.md5 is
+# over a full 550x400 TYPE_INT_RGB ARGB array (PixelSuite.W/H, B12 §2). The
+# values are the game's frame size (Medium.w/h defaults, Medium.java:15-16;
+# GameSparker.createImage(550,400) :1505).
+[frame]
+w = 550
+h = 400

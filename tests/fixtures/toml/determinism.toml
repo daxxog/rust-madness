@@ -1,0 +1,76 @@
+# determinism.toml - seeds, repeating random vectors, preset-walk recipes
+# and recorded walks (tests/fixtures/toml/README.md).
+#
+# Single source of truth for the logic T-classes (Java) and the Rust mirror.
+# Transcribed verbatim from the consuming test classes; the gate proves the
+# transcription (every pin's expected value now comes from here).
+
+# ── seeds ────────────────────────────────────────────────────────────────
+# PixelSuite.main() installs this as its FIRST statement, in a separate,
+# COLD-JIT process: TestRng.install(seed) points Math.random() at a seeded
+# java.util.Random and JDK 8u40 keeps the generator in
+# Math$RandomNumberGeneratorHolder.randomNumberGenerator (static final, the
+# final bit cleared by TestRng); C2 constant-folds that slot at compile time,
+# so the injection MUST precede the first compilation of any Math.random()
+# call path (the "TJavaRandom slot" pattern, TestRng.java header). The file
+# read consumes no Math.random - see tests/pixel/PixelRace.java and
+# B12_pixel.md §8. Value = the game's 2005-03 era + 10 (PixelRace comment).
+[seed]
+pixel_main = 20050310
+
+# ── repeating random vectors ─────────────────────────────────────────────
+# Each Medium subclass below overrides random() with a fixed vector that
+# wraps; the wrap PERIOD is part of the pinned behavior, so the lengths are
+# shape-pinned by the consumers.
+[vectors]
+
+# TMadnessDrive.VecMedium - 12 values, then it wraps. Sanctioned for drive
+# loops (the TRecord.TenthsMedium pattern); Math.random is never consulted.
+vecmedium = [0.2, 0.7, 0.4, 0.9, 0.1, 0.5, 0.8, 0.3, 0.6, 0.0, 0.25, 0.75]
+
+# TRecord.TenthsMedium.VEC - the measured seed-101 Medium.random() vector
+# (a fresh Medium, 12 calls). Literals, not a live seeded generator: TestRng
+# stops being observed once HotSpot compiles java.lang.Math.random()
+# (TRecord's class comment); the vector keeps the seeded values while
+# removing the JIT-timing dependency.
+record_tenths = [0.4, 0.0, 0.4, 0.1, 0.3, 0.1, 0.8, 0.6, 0.8, 0.5, 0.9, 0.5]
+
+# TContODraw.TenthsMedium.VEC - the measured seed-101 vector of a fresh
+# Medium, 48 calls. The first 12 entries are exactly record_tenths (both
+# classes replay the same generator); this class draws past 12, so the
+# vector is longer. Kept as its own key: the two classes hardcode two
+# different (prefix-sharing) arrays and neither may drift from its own pin.
+contodraw_tenths = [0.4, 0.0, 0.4, 0.1, 0.3, 0.1, 0.8, 0.6, 0.8, 0.5, 0.9, 0.5, 0.2, 0.2, 0.2, 0.9, 0.5, 0.9, 0.6, 0.8, 0.6, 0.9, 0.5, 0.2, 0.6, 0.8, 0.9, 0.3, 0.1, 0.6, 0.0, 0.4, 0.3, 0.7, 0.7, 0.0, 0.4, 0.0, 0.7, 0.1, 0.3, 0.4, 0.5, 0.6, 0.8, 0.2, 0.9, 0.5]
+
+# ── preset-walk recipes ──────────────────────────────────────────────────
+# TControl.Preset - presets the REAL Medium.random() instead of overriding it
+# (far past TestRng's JIT window). Verified against Medium.java:49-89: cntrn
+# non-zero on entry so the 9-Math.random refill never runs; every call
+# decrements all three rand entries, advances trn with a 3->0 wrap and
+# returns rand[trn]/10. Presetting cntrn to 100 (not 20) keeps even the
+# longest pass (12 draws) inside the same linear walk.
+[recipes.control_preset]
+cntrn = 100
+rand = [5, 5, 5]                  # all three entries; Preset(int) sets them at once
+diup = false                      # uniform: diup = {false, false, false}
+trn = 0
+# the expected walk (one value per draw), and the state after 12 draws
+walk = [0.4, 0.3, 0.2, 0.1, 0.0, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3]
+walk_cntrn = 88                   # 100 - 12
+walk_trn = 0
+walk_rand = [3, 3, 3]             # 5 - 12 mod 10 -> 3
+# the trickphase -1 arm needs a 0.1 first value: new Preset(2)
+alt_rand = 2
+alt_first = 0.1
+
+# ── recorded walks ───────────────────────────────────────────────────────
+# The integration crown (B8_gamesparker.md pin 20, 00-header.md:49,
+# ARCHITECTURE.md:1502-1503): the boot walk's canonical fase stations on the
+# REAL asset graph. TGameSparkerLogic asserts each station from this array;
+# intermediate handoffs (e.g. carselect 7 -> 2 -> 1) are not stations and
+# stay literal in that class.
+[walks]
+crown = [111, 9, 10, 11, 7, 1, 5, 176, 6, 0]
+# Total run() passes (repaint()-parked) up to and including the last
+# fase-176 countdown pass - the walk's pass bound.
+crown_passes = 295

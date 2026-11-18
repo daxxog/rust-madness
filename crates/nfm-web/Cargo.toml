@@ -1,0 +1,15 @@
+[package]
+name = "nfm-web"
+version.workspace = true
+edition.workspace = true
+
+# The browser host is a raw-wasm cdylib: JS calls the `nfm_*` exports and the
+# module imports only `js_now_ms`/`js_log` from the `env` module. No
+# wasm-bindgen, no web-sys, no new dependencies — nfm-core is the sole dep.
+# `rlib` is listed too so host-side `cargo build/test --workspace` compiles an
+# empty lib (the whole body is behind `cfg(target_arch = "wasm32")`).
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+nfm-core.workspace = true

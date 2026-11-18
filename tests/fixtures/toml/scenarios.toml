@@ -1,0 +1,235 @@
+# scenarios.toml - the drive-scenario scripts (tests/fixtures/toml/README.md)
+#
+# TMadnessDrive's scripted multi-tick pumps live here: the scenario row, its
+# nested [[scenario.phase]] input rows (Control flags + tick counts) and the
+# per-tick expected state the pins assert ([scenario.atN] sub-tables). The
+# drive LOOP and its fixture construction stay in Java; only the script data
+# and expectations move here.
+#
+# SPLIT RULE: a value that is scenario-scoped (initial car state, course
+# geometry, phase flags, per-tick expectations) lives in this file. A
+# game-behavior constant the same scenario asserts (clamps, thresholds,
+# ladder values) lives in constants.toml and is loaded from there even when a
+# scenario also pins it. Single-tick branch fixtures (wall branches, capsize
+# arms, reg* scatter, colide ties, ...) stay in Java as unit fixtures - they
+# are branch coverage, not scripts; their constants come from constants.toml.
+#
+# Source: tests/java/TMadnessDrive.java, reference/vineflower/Madness.java
+# (line cites in the Java pump comments), notes B9.
+
+# ── the 400-tick integration race ────────────────────────────────────────
+# 120 floor tiles (skd cycles 0..3), 40 signed xy=+-90 walls, 10 xy=45
+# slopes and a 6-checkpoint course; Control drives up with periodic
+# left/right/handb/down taps and nofocus re-armed 4 ticks in 5.
+[[scenario]]
+id = "race"
+ticks = 400
+im = 1
+cn = 0
+power = 98.0
+start_y = 240
+course_floors = 120
+floor_y = 240
+floor_z_base = -200
+floor_z_step = 200
+floor_skd_mod = 4
+floor_dam = 20
+floor_radx = 140
+floor_radz = 140
+floor_rady = 20
+course_walls = 40
+wall_x = 300
+wall_y = 240
+wall_z_base = -200
+wall_z_step = 600
+wall_xy = 90
+wall_radx = 20
+wall_radz = 300
+wall_rady = 60
+wall_dam = 20
+course_slopes = 10
+slope_x = 0
+slope_y = 240
+slope_z_base = -200
+slope_z_step = 2400
+slope_z_mid = 1200
+slope_xy = 45
+slope_dam = 20
+slope_radx = 140
+slope_radz = 140
+slope_rady = 30
+checkpoints = 6
+checkpoint_x = 0
+checkpoint_y = 240
+checkpoint_z_base = -200
+checkpoint_z_step = 4000
+checkpoint_typ2_index = 2
+
+[[scenario.phase]]
+ticks = 400
+up = true
+left_period = 37
+left_ticks = 10
+right_period = 53
+right_ticks = 8
+handb_period = 61
+handb_ticks = 3
+down_period = 71
+down_ticks = 2
+wall = -1
+nofocus_period = 5
+nofocus_zero = 0
+
+[scenario.at0]
+y = 170
+x = 70
+speed = 0.0
+mtouch = true
+
+[scenario.at40]
+y = 195
+x = -85
+z = 3550
+speed = 185.842
+trcnt = 1
+
+[scenario.at80]
+y = 248
+x = 284
+z = 10245
+
+[scenario.end]
+mtouch = true
+
+# ── free roll: the ground clamp and the power decay ──────────────────────
+# Tick 0 clamps y 240 -> 250, lifts scy +7 then bounces it to -1.4000006 and
+# decays power 98 -> 97.62352; tick 1 pulls scy to 0; ticks 2..11 finish the
+# decay. (Madness.java:1417-1461,2404-2410)
+[[scenario]]
+id = "roll"
+ticks = 12
+im = 1
+cn = 0
+power = 98.0
+start_y = 240
+
+[[scenario.phase]]
+ticks = 12
+
+[scenario.at0]
+y = 250
+scy0 = -1.4000006
+scy3 = -1.4000006
+power = 97.62352
+wtouch = true
+gtouch = true
+skid = 2
+trcnt = 0
+
+[scenario.at1]
+scy0 = 0.0
+power = 97.251366
+skid = 0
+
+[scenario.at11]
+power = 93.750465
+speed = 0.0
+y = 250
+
+# ── air control: handb in the air starts loop 1 -> 2 ────────────────────
+# Phase 0/1 handb: loop 1 -> 2 with scy averaged to 7. Phase 2 up+left:
+# ucomp 10.5, lcomp 7, pzy -10, pxy -7, y 92. Phase 3 release decays them.
+# Phase 4 down+right: dcomp positive, rcomp 7, pxy -8. (Madness.java:790-1073)
+[[scenario]]
+id = "air_handb"
+ticks = 5
+im = 1
+cn = 0
+power = 98.0
+start_y = 50
+
+[[scenario.phase]]
+ticks = 1
+handb = true
+
+[[scenario.phase]]
+ticks = 1
+handb = true
+
+[[scenario.phase]]
+ticks = 1
+up = true
+left = true
+
+[[scenario.phase]]
+ticks = 1
+
+[[scenario.phase]]
+ticks = 1
+down = true
+right = true
+
+[scenario.at0]
+loop = 2
+scy0 = 7.0
+scy3 = 7.0
+
+[scenario.at1]
+loop = 2
+
+[scenario.at2]
+ucomp = 10.5
+lcomp = 7.0
+pzy = -10
+pxy = -7
+y = 92
+
+[scenario.at3]
+ucomp = 10.0
+lcomp = 5.0
+
+[scenario.at4]
+dcomp_positive = true
+rcomp = 7.0
+pxy = -8
+
+# ── loop==-1 airborne block ──────────────────────────────────────────────
+# A pre-set loop==-1, left+up held, y<100. (Madness.java:992-1073; the
+# one-tick wtouch 2 -> -1 latch is a branch fixture in the Java class.)
+[[scenario]]
+id = "loopminus_air"
+ticks = 3
+im = 1
+cn = 0
+power = 98.0
+start_y = 50
+loop = -1
+
+[[scenario.phase]]
+ticks = 1
+left = true
+up = true
+
+[[scenario.phase]]
+ticks = 1
+left = true
+up = true
+
+[[scenario.phase]]
+ticks = 1
+left = true
+up = true
+
+[scenario.at0]
+lcomp = 7.0
+ucomp = 7.0
+pxy = -7
+pzy = -7
+
+[scenario.at1]
+lcomp = 9.0
+y = 71
+
+[scenario.at2]
+pxy = -27
+y = 92

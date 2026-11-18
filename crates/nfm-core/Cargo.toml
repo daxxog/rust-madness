@@ -1,0 +1,10 @@
+[package]
+name = "nfm-core"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+flate2.workspace = true
+
+[dev-dependencies]
+toml = "1.2.1"

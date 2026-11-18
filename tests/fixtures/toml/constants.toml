@@ -1,0 +1,243 @@
+# constants.toml - the load-bearing game constants (tests/fixtures/toml/README.md)
+#
+# Single source of truth for the magic integers/floats the behavior T-classes
+# assert or drive with. The B-docs (notes/JAVA-BEHAVIOR/B*.md) are the
+# narrative record; this file is normative (README: on conflict the TOML wins).
+#
+# SCOPE RULE (README): a literal lives here when it is (a) pinned as an
+# expected value, (b) drives a scenario, or (c) a game-behavior constant the
+# port must mirror. Test-internal scaffolding (loop bounds over local arrays,
+# the recorder's "str ... x,y color" wrappers, fixture geometry indices) stays
+# in the Java class. Each domain block notes its source class/lines and the
+# consumer T-class that loads it.
+#
+# Transcribed verbatim from the consumers; the gates are the proof.
+
+# ── Madness: drive physics, collisions, tricks, powerups ──────────────────
+# Source: reference/vineflower/Madness.java (cites below), notes B9.
+# Consumer: TMadnessDrive, TMadness, TMadnessWorld, TControl (via [control]).
+[madness]
+power_default = 75            # Madness.java:111 - ctor power (reseto installs 98)
+power_reset = 98              # Madness.java:639
+power_decay_divisor = 2500000 # Madness.java:49 powerloss[0]; :2407 power -= power^3/div
+wall_recoil_cap = 300.0       # Madness.java:458-473,500-514 - the ±300 push/revpush clamps
+colide_push_walk = 2000.0     # the four-pair push walk 800 -> 2000 (Madness.java:450-551; B9)
+colide_pairs = 4              # per-wheel-pair push repetitions (Madness.java:450)
+mxz_gap = 30                  # Madness.java:1167 - <30 -> quarter step
+mxz_divisor = 4               # Madness.java:1168 - cxz += gap/4
+mxz_step = 10                 # Madness.java:1171-1177 - else ±10
+mxz_wrap_result = 350         # fixture (cxz 0, mxz 200) -> +360 then -10 (Madness.java:1160-1177)
+capsize_detect = 90           # Madness.java:746 - |pzy| normalized >90
+capsize_wrap = 270            # Madness.java:741 - while |angle| >270 subtract 360
+capsize_full = 360            # the 400 -> 40 normalization (pzy=400-360)
+capsize_over = 400            # the >270 loop probe (TMadnessDrive u41)
+capsize_respawn_ticks = 30    # Madness.java:2392-2398 - capcnt reaches 30
+capsize_flip = -50            # Madness.java:50 flipy[0]; :2395 y += flipy[cn]
+capsnap_band_lo = 170         # Madness.java:1944 - pzy/pxy in (170,190) snap to 180
+capsnap_band_hi = 190
+capsnap_probe = 175           # pinned fixture inside the band
+capsnap_result = 180
+capsnap_deadband = 10         # Madness.java:2011 - |pxy - xy| >= 4; fixture pxy 5 -> 0
+powerup_trav_threshold = 90   # Madness.java:2307,2313,2325 - |trav|>90 uses the divide arm
+powerup_travxy_div = 24.0     # :2308
+powerup_travzy_div = 18.0     # :2314,2326
+powerup_travxz_div = 18.0     # :2326
+powerup_rtab = 30             # :2309-2311
+powerup_ftab = 40             # :2316-2318
+powerup_btab = 40             # :2320-2322
+powerup_surfer = 30           # :2328-2330
+powerup_clamp = 98.0          # :2342
+powerup_xt_threshold = 150    # :2344 - powerup>150 -> xtpower 200, else 100
+powerup_xt_high = 200         # :2345
+powerup_xt_low = 100          # :2347
+cotchinow_min = 60            # :2334 - powerup > 60 gates cotchinow
+cotchinow_caught = 300        # Record.java:653 - caught >= 300
+cotchinow_whenwasted = 225    # Madness.java:2337
+trick_rotate = 135            # :2271-2281 - |travxy|>135 / travzy ±135
+trick_probe_delta = 5         # pinned 130 = rotate - 5
+trick_ticks = 7               # the 7-tick right-hold pump (TMadnessDrive j)
+ground_clamp = 245            # :1418 - var21 > 245 triggers the ground clamp
+ground_y = 250                # :1418 - clamp target
+ground_probe_y = 240          # pinned fixture that touches ground on tick 0
+ground_lift = 7               # :1190 - scy lift (+7)
+ground_bounce = 1.2           # bounce[0]; :1515-1522 - scy -= |scy*bounce|
+ground_fall_floor = 1.1       # :1516-1517
+focus_scan_len = 140          # CheckPoints typ[] length; the focus walk typ[140] AIOOBE edge (B9)
+checkpoint_far = 800          # :2194 - dist > 800 -> missedcp 1
+checkpoint_near = 400         # :2200 - dist < 400 clears -2
+checkpoint_very_near = 250    # :2204 - dist < 250 -> 68
+capsize_impulse_gate = 70     # :2381 - |scx|,|scz| < 70 arms the capcnt counter
+destruction_hitmag = 4000     # :2076 - > maxmag[0] 3500
+destruction_maxmag = 3500     # :53 maxmag[0]
+destruction_cntdest = 7       # :2078-2079 - cntdest reaches 7 -> dest
+damage_record_gate = 100      # :123,291,651 - |damage| > 100 records/hits
+trick_srfcnt_cap = 10         # :2290 - srfcnt < 10
+trcnt_powerup_arm = 9         # :2332 - trcnt == 9 computes powerup
+trcnt_reset = 10              # :2352-2364 - trcnt 10 resets the trick counters
+lastcolido_decay = 1          # :2421-2423
+
+# ── Control: the AI plan block and its pinned latents ─────────────────────
+# Source: reference/vineflower/Control.java, notes B7.
+# Consumer: TControl.
+[control]
+saftey_default = 30           # Control.java:27
+mustland_default = 0.5        # :29
+trickprf_default = 0.5        # :31
+clrnce_default = 5            # :24
+skiplev_default = 1.0         # :23
+acuracy_lead = 48             # :96-104 (7-1)*4*(6-4) with pos[0]=4, pos[im]=1
+acuracy_stage2 = 24           # :74,96-104 with pos[0]=3, pos[im]=3
+upwait_lead = 20              # :96-103 (4-1)^3*1.5 truncated, plus the stage-1 floor
+upwait_stage2 = 40            # :74,79-104
+statusque_trick_add = 30      # :882-885 - the trick branch adds 30 to statusque
+trfix_trick_from = 3          # :882-885 - preset 3 maps to 4
+trfix_trick_to = 4
+fpnt_offset = 4               # :1143-1146 - nearest - 4 + nsp
+fpnt_near_units = 2000        # :661 - py < 2000 gate (coordinates /100)
+trickfase_air = 1             # :798-811 - the airborne trick phase
+trickfase_ground = 2          # :945-960
+trickfase_none = -1           # :796-799 - the no-trick pass
+plan_stage1_floor = 1         # :122-131 - skiplev stage-1 floor 1.0
+trfix_hit_pct = 50            # :458-466 - strict >50 / >80 of maxmag
+trfix_hit_pct_high = 80
+
+# ── xtGraphics: HUD, countdown ladder, camera reset ──────────────────────
+# Source: reference/vineflower/xtGraphics.java, GameSparker.java; notes B10/B8.
+# Consumer: TxtGraphicsLogic, TGameSparkerLogic, PixelRace.
+[xt]
+drawstat_red = 244            # :2763 (int)(244.0F - 233.0F*((v-33)/65))
+drawstat_green_mid = 186      # max=100/hit=50 -> 186.646 truncated (B10 correction)
+drawstat_green_low = 11       # the other channels at the same point
+drawstat_green_high = 244     # hit clamped to max -> green 244
+drawstat_blue = 11
+pause_band_row = 106          # :1159 - var8 > 550*(106+var5)+156
+pause_band_grey_index = 156   # strictly greater: +156 stays grey
+pause_band_first_tint = 157   # first tinted pixel
+kbload_newsun = 514           # :2959-2962 var4==2
+dnload_newsun = 485           # :2966-3152 summed var4==2
+kbload_default = 416          # :2959-2962 default sound dir
+dnload_default = 387          # :2966-3151 default sound dir
+cntwis_dest = 8               # :1540-1552 - dest && cntwis==8 "you were wasted"
+starcnt_start = 90            # resetstat :2634; the fase-0 ==90 camera reset
+starcnt_landing = 35          # :1050-1069 / stat :1719 - the 35 landing/clamp
+starcnt_visible = 34          # first visible HUD frame after the landing
+starcnt_two = 24              # :1719-1745 countdown clips fire at 35/24/13/2
+starcnt_one = 13
+starcnt_go = 2
+starcnt_race = 0              # first physics pass
+gocnt_start = 3               # resetstat :2635
+gocnt_two = 2                 # :1723-1745
+gocnt_one = 1
+gocnt_go = 0
+camera_adv_start = 1900       # GameSparker.java:1017-1027 - starcnt==90 reset
+camera_vxz_start = 70
+camera_zy_start = 40
+camera_adv_landing = 900      # GameSparker.java:1067-1069 - starcnt==35 clamp
+camera_vxz_landing = 180
+camera_around_adv_step = 20   # Medium.around :334-396 - adv -= 20 above the flex arm
+camera_around_vxz_step = 4    # vxz += 4
+
+# ── ContO: draw gate and dust impulse boundary ───────────────────────────
+# Source: reference/vineflower/ContO.java, notes B6.
+# Consumer: TContO, TContODraw.
+[conto]
+maxr_draw_gate = 241          # :520 - xs(maxR,0)=8*maxR-1925 > 0
+pdust_impulse = 100           # :119-120 - scx/smag float->int +/-Infinity boundary
+pdust_draws = 16              # :124-143 - two random draws per polygon vertex
+
+# ── Plane: deltaf/projf geometry ─────────────────────────────────────────
+# Source: reference/vineflower/Plane.java, notes B5.
+# Consumer: TPlane.
+[plane]
+deltaf_3_4_5 = 1200.0         # :201-223 - 3*4*5*3*4*5/3
+projf_3_4_5 = 1200.0          # :47-71 - x/z 3-4-5
+projf_zero = 0.0
+deltaf_sample_bits = 892531967 # :201-223 sample plane bit pattern (B5/TPlane pin)
+av_far = 3000                 # :834-840 - av>3000 with adv<=900 forces noline
+av_probe = 565                # the tracked-plane sample (TPlane dtrk_control_plain_av_565)
+
+# ── Wheels: the procedural wheel generator ───────────────────────────────
+# Source: reference/vineflower/Wheels.java, notes B3.
+# Consumer: TWheels, TSmall.
+[wheels]
+slots_per_wheel = 9           # :44 + eight rims :60-162
+hub_vertices = 8              # :44
+rim_vertices = 4              # :60..:162
+hub_half_span = 4             # :24-26 - var5 -/+ 4*var16
+rim_y = 12                    # :28-43,48-59 - var6 +/- 12*var17
+rim_z = 5                     # :28-43 - var7 +/- 5
+ground_bias = 1               # :118-120 - (int)(y + 12*yScale + 1)
+ground_abs_special = 73       # :17-20 - |var5| == 73 -> gr -1
+trackers_slots = 500          # Trackers.java:2-13 - the 500-slot ring (TSmall)
+
+# ── Record: recorder window and damage threshold ─────────────────────────
+# Source: reference/vineflower/Record.java, notes B4.
+# Consumer: TRecord, TMadnessWorld.
+[record]
+cntf = 50                     # :4 - the shared re-shift counter
+ring_slots = 7                # :637-639 - damage ring wraps at 7
+ring_last = 6                 # slot 6 is the last used before the wrap
+frames = 300                  # [300][5] frame-major arrays
+hist_slot = 299               # :581-589 - newest frame insert
+part_slots = 4                # parts 0..3
+damage_threshold = 100        # reg* guard: |damage| > 100
+
+# ── GameSparker: the drivesounds gate and boot cadence ───────────────────
+# Source: reference/vineflower/GameSparker.java, notes B8.
+# Consumer: TGameSparkerLogic, PixelRace.
+[gamesparker]
+playsounds_starcnt_gate = 35  # :758 - fase==0 && starcnt<35
+loadhold = 80                 # :607-631 default loadhold (gameprfact == -1)
+factor_default = 35           # :607 - default factor
+fase_start = 111              # xtGraphics.java:25 / GameSparker boot arm
+carselect_gatey = 100         # :3598-3602 - pgate gatey decrement step
+
+# ── ModSlayer: the turnbytes safety cap ──────────────────────────────────
+# Source: reference/vineflower/ModSlayer.java, notes B2.
+# Consumer: TModEdges.
+[modslayer]
+turnbytes_cap = 3500000       # :598-603 - output stops at 3.5M samples
+
+# ── the audio device boundary (8u40 AudioDevice) ─────────────────────────
+# Source: sun.audio AudioDevice bytecode (B13 §1.1); notes B13.
+# Consumer: TAudioGoldens.
+[audio_device]
+rate = 8000                   # ULAW fallback rate (bytecode offsets 303-318)
+frame_bytes = 1024            # BufferedInputStream(in, 1024); one read = 1024 samples
+ms_per_call = 128             # 1024 samples / 8000 Hz
+
+# ── Medium: camera/palette/fade defaults ─────────────────────────────────
+# Source: reference/vineflower/Medium.java, notes B3.
+# Consumer: TMedium, TMadnessDrive (the Medium block), TControl (preset).
+[medium]
+focus_point = 400             # Medium.java:5
+ground = 250                  # :6
+skyline = -300                # :7
+cx = 275                      # :8
+cy = 200                      # :9
+cz = 50                       # :10
+vxz = 180                     # :11
+adv = 500                     # :12
+hit = 60000                   # :13
+ptcnt = -10                   # :14
+w = 550                       # :15
+h = 400                       # :16
+fade0 = 3000                  # :17 fade[0]
+fade1 = 6000                  # :17 fade[1]
+fade7 = 24000                 # :17 fade[7]
+fade_floor = 3000             # :427-443 - adjstfade floor
+fade_step = 500               # :435-441 - growth step
+fade_low_step = 1000          # :429-433 - 1000*(15-v)
+fade_low_angle = 15           # :427 - the <15.0F branch
+d_zy_clamp = 90               # :154-283 - |zy| clamp
+d_xz_wrap = 360               # :154-283 - xz wrap span
+d_y_clamp = 0                 # y>0 -> 0 (Medium.java:154-283)
+csky0 = 217                   # :17 csky
+csky2 = 255
+cgrnd0 = 205                  # :17 cgrnd
+cgrnd2 = 200
+cfade0 = 255                  # :17 cfade
+cfade1 = 220
+addsp_slots = 5               # :445-452
+aroundtrack_hit = 60000       # :44
+aroundtrack_floor = 5000     # :462-464

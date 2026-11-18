@@ -1,0 +1,7 @@
+[package]
+name = "nfm-dump"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+nfm-core.workspace = true

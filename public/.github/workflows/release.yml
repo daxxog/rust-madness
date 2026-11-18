@@ -1,0 +1,362 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+# A tag pushes three things: Releases assets (the four tarballs) and the
+# Pages play page. Both need write scopes; gates and builds only read.
+permissions:
+  contents: write   # softprops/action-gh-release attaches the tarballs
+  pages: write      # actions/deploy-pages publishes the site
+  id-token: write   # OIDC token for the official Pages deployment action
+
+jobs:
+  # WHY: gates-then-publish — a tag must never ship an unproven build, so the
+  # whole CI battery is re-run here VERBATIM (decompile -> java behavior + pixel
+  # gates against the container's font authority -> rust mirrors -> provenance)
+  # before any artifact is built. This job is deliberately long: that is the
+  # proof the release rests on. The two ci.yml jobs that handed reference/ over
+  # with an artifact are collapsed here because one runner does both steps in
+  # the same workspace; every gate command below is unchanged.
+  gates:
+    runs-on: ubuntu-latest
+    steps:
+      # ------ from ci.yml job: decompile -------------------------------------
+      - name: Check out the public repository
+        uses: actions/checkout@v4
+
+      - name: Install podman (GitHub runners do not ship it)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y podman
+
+      # tools/decompile.sh cds to its own repo root, builds tools/Dockerfile
+      # (VINEFLOWER_VERSION=1.10.1) and writes reference/ into that root.
+      - name: Re-derive reference/ from mad.jar
+        run: tools/decompile.sh
+
+      - name: Assert the decompiled tree is present
+        run: test -f reference/vineflower/GameSparker.java
+
+      # No upload-artifact hand-off: unlike CI, java-gates runs in THIS job, so
+      # the freshly derived reference/ is already in the shared workspace.
+
+      # ------ from ci.yml job: java-gates ------------------------------------
+      - name: Provision JDK 8 for the local leg
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '8'
+
+      # The gates need netscape.javascript.JSObject on javac's classpath (plus
+      # deploy.jar beside it for the container leg); Oracle 8u40's proprietary
+      # plugin/deploy jars are absent from Temurin 8. Build both jars from this
+      # repo's own compile-time stubs and point JAVA8_HOME at the resulting
+      # minimal JDK-shaped directory. Local equivalence proof (batch G1): both
+      # gate legs' logs were BYTE-IDENTICAL to the Oracle-jar baseline at 4792/0
+      # and the pixel gate was 172/0 (only its pump wall-time line differed).
+      - name: Build hermetic stub plugin/deploy jars
+        run: |
+          STAGE="$GITHUB_WORKSPACE/target/probe-jdk8"
+          mkdir -p "$STAGE/jre/lib" "$STAGE/build"
+          javac -d "$STAGE/build" \
+            tools/javac-stubs/netscape/javascript/JSObject.java \
+            tools/javac-stubs/sun/audio/AudioPlayer.java
+          (cd "$STAGE/build" \
+            && jar cf "$STAGE/jre/lib/plugin.jar" . \
+            && jar cf "$STAGE/jre/lib/deploy.jar" .)
+          echo "JAVA8_HOME=$STAGE" >> "$GITHUB_ENV"
+
+      # The catb0t Simple Car.rad fixture is carried by public-export.sh as one
+      # explicit, citable third-party carve-out. Without it TContO aborts at
+      # 1508/0; with it the unchanged suite reaches 4792/0 on both legs.
+      - name: Java behavior gate, local leg - expect 4792/0
+        run: tools/java-tests.sh
+
+      # The pixel gate runs in the Temurin-8 container, which carries the font
+      # authority: one shipped font file, one fontconfig mapping, md5-pinned
+      # frames - independent of the mac or runner's display, JDK and fonts.
+      - name: Pixel gate, container font authority - expect 172/0
+        run: tools/pixel-tests.sh
+
+      # ------ from ci.yml job: rust-gates ------------------------------------
+      - name: Ensure stable toolchain with rustfmt
+        run: |
+          rustup toolchain install stable --profile minimal --component rustfmt
+          rustup default stable
+
+      - name: Format check
+        run: cargo fmt --all -- --check
+
+      - name: Build all targets
+        run: cargo build --workspace --all-targets
+        env:
+          RUSTFLAGS: -D warnings
+
+      # The same carve-out supplies reference/external/catb0t/... to the export,
+      # so mirror::mirror_suite finds its byte-parse fixture here too: 207 + 42.
+      - name: Rust gates - expect 207 + 42
+        run: cargo test --workspace
+
+      # ------ from ci.yml job: provenance ------------------------------------
+      - name: Recompute PROVENANCE.md digests and the mad.jar pin
+        run: |
+          python3 - <<'PY'
+          import hashlib
+          import pathlib
+          import re
+          import sys
+
+          root = pathlib.Path(".")
+          text = (root / "assets" / "PROVENANCE.md").read_text(encoding="utf-8")
+          rows = 0
+          errors = []
+          for line in text.splitlines():
+              line = line.strip()
+              if not line.startswith("|"):
+                  continue
+              cells = [c.strip() for c in line.strip("|").split("|")]
+              if len(cells) < 5:
+                  continue
+              match = re.fullmatch(r"`([^`]+)`", cells[0])
+              if not match:
+                  continue
+              rel = match.group(1)
+              digest = next((c for c in cells if re.fullmatch(r"[0-9a-f]{64}", c)), None)
+              if digest is None:
+                  continue
+              rows += 1
+              path = root / "assets" / rel
+              if not path.is_file():
+                  errors.append(f"{rel}: missing file")
+                  continue
+              data = path.read_bytes()
+              actual = hashlib.sha256(data).hexdigest()
+              if actual != digest:
+                  errors.append(f"{rel}: sha256 expected {digest}, got {actual}")
+              if len(cells) >= 3 and cells[2].isdigit() and int(cells[2]) != len(data):
+                  errors.append(f"{rel}: bytes expected {cells[2]}, got {len(data)}")
+
+          jar_pin = "70e54d44c65631f3eb014f57398851502cda75dde173d4e06ca37dcd37429f0b"
+          jar_actual = hashlib.sha256((root / "mad.jar").read_bytes()).hexdigest()
+          if jar_actual != jar_pin:
+              errors.append(f"mad.jar: sha256 expected {jar_pin}, got {jar_actual}")
+
+          print(f"PROVENANCE: {rows} rows checked; {len(errors)} mismatch(es)")
+          for error in errors:
+              print(f"  {error}")
+          sys.exit(1 if errors or rows == 0 else 0)
+          PY
+
+  # WHY: pack-before-build ordering — tools/pack.sh must run in EVERY leg before
+  # cargo build, or build.rs bakes the 22-byte empty zip into the binary and the
+  # shipped executable cannot play. Four legs, four runners: two native macOS
+  # runners (one Apple-silicon, one Intel), one ubuntu for the native Linux
+  # binary, one ubuntu for wasm. A matrix keeps "needs: build" a single edge.
+  build:
+    needs: gates
+    name: build (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: mac-aarch64
+            os: macos-latest        # Apple silicon, aarch64 host
+            target: aarch64-apple-darwin
+            crate: nfm-render
+            artifact: rust-madness-mac-aarch64
+          - name: mac-x86_64
+            os: macos-15-intel      # Intel mac, x86_64 host
+            target: x86_64-apple-darwin
+            crate: nfm-render
+            artifact: rust-madness-mac-x86_64
+          - name: steamdeck-x86_64
+            os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            crate: nfm-render
+            artifact: rust-madness-linux-x86_64
+          - name: wasm
+            os: ubuntu-latest
+            target: wasm32-unknown-unknown
+            crate: nfm-web
+            artifact: rust-madness-wasm
+    steps:
+      - name: Check out the public repository
+        uses: actions/checkout@v4
+
+      - name: Ensure stable toolchain with the target
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          rustup target add ${{ matrix.target }}
+
+      # WHY: native-not-cross Linux choice — the Deck build is x86_64 host to
+      # x86_64 target, so no cross toolchain (or private .cross-deck.toml) is
+      # needed; the only prerequisites are gilrs' libudev and cpal's ALSA dev
+      # headers, installed with this apt line.
+      - name: Install Linux audio/input headers
+        if: matrix.target == 'x86_64-unknown-linux-gnu'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libasound2-dev libudev-dev
+
+      # MUST precede the cargo build: build.rs embeds resources.pack from the
+      # workspace root, and pack.sh touches build.rs so a first pack is picked
+      # up even on a tree that was built without one.
+      - name: Embed the play-time resources (pack before build)
+        run: tools/pack.sh
+
+      # Native on the two mac runners and on ubuntu; only wasm is a true cross
+      # target, and rustup target add above already provisioned it.
+      # The cargo targets stay nfm-render/nfm-web; the packaging steps below are
+      # where the shipped files take the public rust-madness name.
+      - name: Build the release binary
+        run: cargo build --release --target ${{ matrix.target }} -p ${{ matrix.crate }}
+
+      # Desktop: a self-contained ELF/Mach-O + a README snippet. No resource
+      # files travel with it; the cookie jar lands beside the executable.
+      # cargo builds nfm-render; packaging renames the binary to rust-madness.
+      - name: Package the desktop artifact
+        if: matrix.crate == 'nfm-render'
+        env:
+          TARGET: ${{ matrix.target }}
+          ARTIFACT: ${{ matrix.artifact }}
+        run: |
+          set -euo pipefail
+          BIN="target/$TARGET/release/nfm-render"
+          test -f "$BIN"
+          STAGE="dist/$ARTIFACT"
+          mkdir -p "$STAGE"
+          cp "$BIN" "$STAGE/rust-madness"
+          cat > "$STAGE/README.txt" <<'EOF'
+          rust-madness — a Rust port of Need for Madness, self-contained native build.
+
+          Run `./rust-madness` from anywhere: every play-time resource is embedded
+          in the executable, so no asset/data files are needed beside it.
+
+          Your score file `nfm-cookies.txt` is created beside the executable
+          (the current directory is checked first, then the executable's own
+          directory). Keep the two together if you move the build.
+
+          Controls and provenance are in the project README / NOTICES.md.
+          EOF
+          tar -czf "dist/$ARTIFACT.tar.gz" -C "$STAGE" .
+          echo "packaged dist/$ARTIFACT.tar.gz"
+
+      # wasm: cargo builds nfm_web.wasm; the deploy artifact is renamed to
+      # rust-madness.wasm, the name glue.js fetches from the Pages site.
+      - name: Package the wasm artifact
+        if: matrix.crate == 'nfm-web'
+        env:
+          ARTIFACT: ${{ matrix.artifact }}
+        run: |
+          set -euo pipefail
+          WASM="target/wasm32-unknown-unknown/release/nfm_web.wasm"
+          test -f "$WASM"
+          STAGE="dist/$ARTIFACT"
+          mkdir -p "$STAGE"
+          cp "$WASM" "$STAGE/rust-madness.wasm"
+          cat > "$STAGE/README.txt" <<'EOF'
+          rust-madness — WebAssembly build (a Rust port of Need for Madness).
+
+          This module is the game served by the GitHub Pages play page; it is
+          loaded by glue.js under the name rust-madness.wasm. It is not a standalone
+          executable — open the deployed site to play.
+          EOF
+          tar -czf "dist/$ARTIFACT.tar.gz" -C "$STAGE" .
+
+      - name: Upload the release tarball
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.artifact }}
+          path: dist/${{ matrix.artifact }}.tar.gz
+          if-no-files-found: error
+          retention-days: 7
+
+      # Only the wasm leg feeds Pages: the raw file, no README, no tarball.
+      - name: Upload the wasm for Pages
+        if: matrix.crate == 'nfm-web'
+        uses: actions/upload-artifact@v4
+        with:
+          name: rust-madness-wasm
+          path: dist/rust-madness-wasm/rust-madness.wasm
+          if-no-files-found: error
+          retention-days: 7
+
+  # WHY: single publish fan-out — the SAME verified build feeds both surfaces,
+  # so the Releases tarballs and the live play page can never drift apart.
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the tagged commit (with tag objects for the message)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Download the four release tarballs
+        uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          merge-multiple: true
+          path: dist
+
+      - name: Extract the annotated tag message as release notes
+        run: |
+          git fetch --force --tags
+          git tag -l --format='%(contents)' "${GITHUB_REF_NAME}" > tag-message.txt
+          test -s tag-message.txt || echo "Release ${GITHUB_REF_NAME}" > tag-message.txt
+
+      - name: Publish the GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          body_path: tag-message.txt
+          generate_release_notes: true
+          files: |
+            dist/*.tar.gz
+
+  # WHY: the Pages site is exactly the play page — only public/site/ plus the
+  # built rust-madness.wasm are uploaded, never a release tarball, note or private
+  # source; the deployed root is index.html + glue.js + the three vendored gifs
+  # + rust-madness.wasm and nothing else.
+  pages:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    steps:
+      - name: Check out the public repository
+        uses: actions/checkout@v4
+
+      - name: Download the built wasm into the site
+        uses: actions/download-artifact@v4
+        with:
+          name: rust-madness-wasm
+          path: public/site
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+        with:
+          # Attempt to enable Pages on this repository if it is not
+          # already enabled, so the very first tagged release can
+          # deploy without a manual Settings -> Pages click.
+          enablement: true
+
+      - name: Upload the site artifact (site dir + wasm only)
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: public/site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

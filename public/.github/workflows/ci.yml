@@ -1,0 +1,174 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  # WHY: the public repo deliberately ships no reference/ tree, so re-deriving it from the shipped mad.jar with the pinned decompiler is the project's core provenance proof — CI, not a developer's laptop, is where that proof is re-established.
+  decompile:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the public repository
+        uses: actions/checkout@v4
+
+      - name: Install podman (GitHub runners do not ship it)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y podman
+
+      # tools/decompile.sh cds to its own repo root, builds tools/Dockerfile
+      # (VINEFLOWER_VERSION=1.10.1) and writes reference/ into that root.
+      - name: Re-derive reference/ from mad.jar
+        run: tools/decompile.sh
+
+      - name: Assert the decompiled tree is present
+        run: test -f reference/vineflower/GameSparker.java
+
+      # Every job gets a fresh runner; hand the derived tree to the java gates.
+      - name: Upload the derived reference tree
+        uses: actions/upload-artifact@v4
+        with:
+          name: derived-reference
+          path: reference/
+          retention-days: 1
+
+  # WHY: the java gates are the original-side proof and must consume the reference derived in job 1; the pixel gate's font authority is the Temurin-8 container (one shipped font + one pinned fontconfig mapping), never the runner's fonts.
+  java-gates:
+    needs: decompile
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the public repository
+        uses: actions/checkout@v4
+
+      - name: Provision JDK 8 for the local leg
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '8'
+
+      # The gates need netscape.javascript.JSObject on javac's classpath (plus
+      # deploy.jar beside it for the container leg); Oracle 8u40's proprietary
+      # plugin/deploy jars are absent from Temurin 8. Build both jars from this
+      # repo's own compile-time stubs and point JAVA8_HOME at the resulting
+      # minimal JDK-shaped directory. Local equivalence proof (batch G1): both
+      # gate legs' logs were BYTE-IDENTICAL to the Oracle-jar baseline at 4792/0
+      # and the pixel gate was 172/0 (only its pump wall-time line differed).
+      - name: Build hermetic stub plugin/deploy jars
+        run: |
+          STAGE="$GITHUB_WORKSPACE/target/probe-jdk8"
+          mkdir -p "$STAGE/jre/lib" "$STAGE/build"
+          javac -d "$STAGE/build" \
+            tools/javac-stubs/netscape/javascript/JSObject.java \
+            tools/javac-stubs/sun/audio/AudioPlayer.java
+          (cd "$STAGE/build" \
+            && jar cf "$STAGE/jre/lib/plugin.jar" . \
+            && jar cf "$STAGE/jre/lib/deploy.jar" .)
+          echo "JAVA8_HOME=$STAGE" >> "$GITHUB_ENV"
+
+      - name: Download the derived reference tree
+        uses: actions/download-artifact@v4
+        with:
+          name: derived-reference
+          path: reference
+
+      - name: Install podman (GitHub runners do not ship it)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y podman
+
+      # The catb0t Simple Car.rad fixture is now carried by tools/public-export.sh
+      # as one explicit, citable third-party carve-out and credited in
+      # PROVENANCE.md / NOTICES.md. Without it TContO aborts at 1508/0; with it
+      # the unchanged suite reaches 4792/0 on both the local and container legs.
+      - name: Java behavior gate, local leg - expect 4792/0
+        run: tools/java-tests.sh
+
+      # The pixel gate runs in the Temurin-8 container, which carries the font
+      # authority: one shipped font file, one fontconfig mapping, md5-pinned
+      # frames - independent of the mac or runner's display, JDK and fonts.
+      - name: Pixel gate, container font authority - expect 172/0
+        run: tools/pixel-tests.sh
+
+  # WHY: the Rust mirrors are hermetic and need no decompiled reference, so they run in parallel with job 1 on a stock stable rustup toolchain.
+  rust-gates:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the public repository
+        uses: actions/checkout@v4
+
+      - name: Ensure stable toolchain with rustfmt
+        run: |
+          rustup toolchain install stable --profile minimal --component rustfmt
+          rustup default stable
+
+      - name: Format check
+        run: cargo fmt --all -- --check
+
+      - name: Build all targets
+        run: cargo build --workspace --all-targets
+        env:
+          RUSTFLAGS: -D warnings
+
+      # The same carve-out supplies reference/external/catb0t/... to the export,
+      # so mirror::mirror_suite finds its byte-parse fixture here too: 207 + 42.
+      - name: Rust gates - expect 207 + 42
+        run: cargo test --workspace
+
+  # WHY: hermetic, zero-network check - recompute every PROVENANCE.md digest locally and pin mad.jar's sha256, proving the shipped assets are the archived bytes without any archive.org request.
+  provenance:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the public repository
+        uses: actions/checkout@v4
+
+      - name: Recompute PROVENANCE.md digests and the mad.jar pin
+        run: |
+          python3 - <<'PY'
+          import hashlib
+          import pathlib
+          import re
+          import sys
+
+          root = pathlib.Path(".")
+          text = (root / "assets" / "PROVENANCE.md").read_text(encoding="utf-8")
+          rows = 0
+          errors = []
+          for line in text.splitlines():
+              line = line.strip()
+              if not line.startswith("|"):
+                  continue
+              cells = [c.strip() for c in line.strip("|").split("|")]
+              if len(cells) < 5:
+                  continue
+              match = re.fullmatch(r"`([^`]+)`", cells[0])
+              if not match:
+                  continue
+              rel = match.group(1)
+              digest = next((c for c in cells if re.fullmatch(r"[0-9a-f]{64}", c)), None)
+              if digest is None:
+                  continue
+              rows += 1
+              path = root / "assets" / rel
+              if not path.is_file():
+                  errors.append(f"{rel}: missing file")
+                  continue
+              data = path.read_bytes()
+              actual = hashlib.sha256(data).hexdigest()
+              if actual != digest:
+                  errors.append(f"{rel}: sha256 expected {digest}, got {actual}")
+              if len(cells) >= 3 and cells[2].isdigit() and int(cells[2]) != len(data):
+                  errors.append(f"{rel}: bytes expected {cells[2]}, got {len(data)}")
+
+          jar_pin = "70e54d44c65631f3eb014f57398851502cda75dde173d4e06ca37dcd37429f0b"
+          jar_actual = hashlib.sha256((root / "mad.jar").read_bytes()).hexdigest()
+          if jar_actual != jar_pin:
+              errors.append(f"mad.jar: sha256 expected {jar_pin}, got {jar_actual}")
+
+          print(f"PROVENANCE: {rows} rows checked; {len(errors)} mismatch(es)")
+          for error in errors:
+              print(f"  {error}")
+          sys.exit(1 if errors or rows == 0 else 0)
+          PY

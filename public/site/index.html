@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- sign.gif is the game's own "!" warning icon (assets/graphics/sign.gif, 75x66). -->
+<link rel="icon" href="sign.gif">
+<title>rust-madness — a Rust port of Need for Madness</title>
+<script>
+// The ONE slug constant: every download link on the page is built from it, so
+// the repo name needs a single edit here. The absolute github.com URL also
+// escapes GitHub Pages' /repo/ path prefix, which would turn a relative
+// ./releases/... link into a 404.
+const NFM_REPO_SLUG = 'daxxog/rust-madness';
+</script>
+<style>
+/* Palette, fonts and framing are quoted from the archived originals:
+   - body background #000000 and the centred 550x400 applet window:
+     reference/run/mad.html (game.html capture, 2007-10-09), <body bgcolor> +
+     <center><applet width=550 height=400>.
+   - text/link colour #b9cbff, Verdana/Arial small fonts, and the lavender
+     #e8ecff nav strip with #30309C links: the 2005-05-13 memento of
+     http://www.radicalplay.com/madness/ (Wayback CDX + one raw memento fetch).
+   - the yellow-orange masthead accent is an era-appropriate stand-in: the
+     original index used a title IMAGE (web/madness.gif) that is not part of the
+     recovered asset set; see the comment on the <h1> below. */
+html, body { margin: 0; padding: 0; background: #000; color: #b9cbff;
+             font: 12px/1.5 Verdana, Arial, sans-serif; }
+a { color: #b9cbff; }
+a:hover { color: #fff; }
+.page { max-width: 600px; margin: 0 auto; padding: 10px 8px 40px; }
+
+/* Masthead: the game's warning sign beside the title treatment. */
+.masthead { display: flex; align-items: center; gap: 10px; margin: 4px 0 10px; }
+.masthead img { width: 75px; height: 66px; }
+.masthead h1 { margin: 0; font-size: 26px; line-height: 1; letter-spacing: 1px;
+               color: #ffcc33; }
+.masthead .tagline { margin: 4px 0 0; font-size: 11px; color: #b9cbff; }
+
+/* The opening-screen image is the game's own 550x217 art. */
+.intro { margin: 0 0 12px; }
+.intro .caption { margin: 0 0 3px; font-size: 10px; color: #8f9fd0; }
+.intro img { display: block; width: 550px; max-width: 100%;
+             height: auto; border: 1px solid #30309C; }
+
+/* Nav strip: same table/background/link colours as the original index bar. */
+table.nav { width: 100%; border-collapse: collapse; background: #e8ecff; }
+table.nav td { padding: 6px 4px; text-align: center; color: #fff; font-weight: bold; }
+table.nav a { color: #30309C; text-decoration: none; }
+table.nav a:hover { text-decoration: underline; }
+
+.play { margin: 14px 0 6px; text-align: center; }
+.loadline { margin: 0 0 4px; font-size: 10px; color: #8f9fd0; }
+.loadline img { width: 238px; height: 21px; vertical-align: middle; }
+.applet { display: inline-block; background: #000; border: 1px solid #30309C;
+          padding: 2px; line-height: 0; }
+#screen { display: block; width: 550px; height: 400px; max-width: 100%;
+          image-rendering: pixelated; background: #000; cursor: pointer; }
+/* Fullscreen is CSS-only: the largest 550:400 box that fits the viewport,
+   centred, with pixelated scaling and a black surround (the UA's fullscreen
+   backdrop). No JS resize logic; Esc exits natively. */
+#screen:fullscreen { width: min(100vw, calc(100vh * 550 / 400)); height: auto;
+                     max-width: none; max-height: none; aspect-ratio: 550 / 400;
+                     margin: auto; background: #000; object-fit: contain;
+                     image-rendering: pixelated; }
+.controls { margin: 6px 0 0; font-size: 10px; color: #8f9fd0; }
+/* Small text-styled control, matching the 2005-era nav links. */
+.fsbtn { font: inherit; font-size: 10px; color: #b9cbff; background: transparent;
+         border: 0; padding: 0 2px; cursor: pointer; text-decoration: underline; }
+.fsbtn:hover { color: #fff; }
+
+h2 { font-size: 13px; color: #ffcc33; margin: 18px 0 6px; }
+.downloads { border-top: 1px solid #30309C; margin-top: 18px; }
+.downloads ul { margin: 4px 0 0; padding-left: 20px; }
+.downloads li { margin: 2px 0; }
+
+.notices { border-top: 1px solid #30309C; margin-top: 20px; }
+.credit { font-size: 11px; margin: 8px 0 2px; }
+.doc { margin: 14px 0 18px; }
+.doc h2 { color: #b9cbff; margin-top: 0; }
+.doc h3 { font-size: 12px; margin: 10px 0 3px; color: #ffcc33; }
+.doc h4 { font-size: 11px; margin: 8px 0 2px; color: #b9cbff; }
+.doc-body { font-size: 11px; line-height: 1.45; }
+.doc-body p { margin: 4px 0; }
+.doc-body ul { margin: 4px 0; padding-left: 18px; }
+.doc-body li { margin: 3px 0; }
+.doc-body code { color: #e8ecff; }
+.notices-end { font-size: 10px; color: #8f9fd0; margin-top: 10px; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Masthead. sign.gif = assets/graphics/sign.gif (the game's 75x66 "!" icon).
+       The yellow-orange title colour stands in for the original index's title
+       image web/madness.gif, which was not recovered into the asset set. -->
+  <div class="masthead">
+    <img src="sign.gif" width="75" height="66" alt="Warning: mad game ahead">
+    <div>
+      <h1>rust-madness</h1>
+      <p class="tagline">A Rust port of Need for Madness — the 2006 Java applet, running again in your browser.</p>
+    </div>
+  </div>
+
+  <!-- hello.gif = assets/graphics/hello.gif (550x217): the game's own opening
+       warning screen, used here as the page's intro banner. -->
+  <div class="intro">
+    <p class="caption">From the game's own opening screen:</p>
+    <img src="hello.gif" width="550" height="217"
+         alt="Warning: this game does not obey the rules of physics">
+  </div>
+
+  <!-- Nav strip mirrors the original index's <table bgcolor=#e8ecff> bar with
+       white bold text and #30309C links; targets are real in-page sections. -->
+  <table class="nav"><tr><td>
+    <a href="#play">Play</a> |
+    <a href="#downloads">Desktop builds</a> |
+    <a href="#notices">Notices &amp; credits</a>
+  </td></tr></table>
+
+  <!-- The black 550x400 window is the archived applet frame (mad.html). The
+       canvas id, the probe hook, audio bridge and resume-on-gesture live in
+       glue.js and are unchanged from W1/W2. -->
+  <div class="play" id="play">
+    <p class="loadline" id="loading"><img src="loadbar.gif" width="238" height="21"
+       alt=""> applet loading...</p>
+    <div class="applet">
+      <canvas id="screen" width="550" height="400" tabindex="0"
+              aria-label="Need for Madness game canvas"></canvas>
+    </div>
+    <p class="controls">Click the panel / press Enter to start &middot; arrows to drive
+      &middot; keys: A M N V P &middot; see the in-game instructions for the rest.
+      &middot; <button type="button" id="fullscreen" class="fsbtn">[ fullscreen ]</button></p>
+  </div>
+
+  <!-- Desktop builds. The tarballs are attached to every v* tag release by
+       .github/workflows/release.yml. The hrefs are filled from NFM_REPO_SLUG
+       (defined once at the top of the page) so they point at the real repo's
+       Releases page rather than resolving under the Pages /repo/ prefix. -->
+  <div class="downloads" id="downloads">
+    <h2>Download the desktop builds</h2>
+    <p>Prefer a native, self-contained binary? Download the port for your machine:</p>
+    <ul>
+      <li><a class="release-dl" data-asset="rust-madness-mac-aarch64.tar.gz">Mac (Apple Silicon)</a></li>
+      <li><a class="release-dl" data-asset="rust-madness-mac-x86_64.tar.gz">Mac (Intel)</a></li>
+      <li><a class="release-dl" data-asset="rust-madness-linux-x86_64.tar.gz">Steam Deck / Linux</a></li>
+    </ul>
+  </div>
+  <script>
+  // One single slug constant feeds every download link; no per-link placeholders.
+  for (const a of document.querySelectorAll('a.release-dl')) {
+    a.href = `https://github.com/${NFM_REPO_SLUG}/releases/latest/download/${a.dataset.asset}`;
+  }
+  </script>
+
+  <!-- The footer is where visitors land, so the notices are RENDERED here,
+       not left as raw files in the repo. The block between the two markers is
+       generated from public/NOTICES.md, public/PROVENANCE.md and public/LICENSE
+       by: python3 public/site/render-notices.py (edit the markdown, not here). -->
+  <div class="notices" id="notices">
+    <p class="credit">Need for Madness &copy; Omar Waly / Radicalplay.com.
+      This Rust port is MIT licensed; original game content remains with its authors.</p>
+<!-- BEGIN GENERATED NOTICES — generated by render-notices.py; do not edit by hand -->
+    <section class="doc" id="notices-doc">
+      <h2>Notices</h2>
+      <div class="doc-body">
+<h3>Original game content</h3>
+<ul><li><strong>Title:</strong> Need for Madness (Java applet).</li><li><strong>Author / publisher as recovered from the game itself:</strong> the credits screen reads <code>"At Radicalplay.com"</code>, <code>"By Omar Waly"</code> and <code>"For any comments: Omar@radicalplay.com"</code> (<code>xtGraphics.java</code>, lines 1483–1493). It also credits game testers <code>"Khaled Helmy, Ismail Gorilaz, Karim AboSamra, Mahmoud Waly, Karim Khadem, Ahmed Ismail and Mahmoud EzzElDien (Turbo)"</code> and <code>"Music From www.ModArchive.com"</code>. The music player classes are <code>RadicalMod</code> and <code>ModSlayer</code>.</li><li><strong>Explicit copyright string:</strong> <code>ModSlayer.COPYRIGHT</code> (<code>ModSlayer.java:5</code>) is the empty string; the bytecode carries no copyright line to reproduce.</li><li><strong>Year:</strong> dated <strong>2006</strong> — the earliest Wayback Machine capture of the exact distributed jar (2006-05-05, digest-identical through 2007-07-02). No date is encoded in the jar itself.</li><li><strong>Source:</strong> the Wayback Machine's captures of <code>http://www.radicalplay.com/madness/mad.jar</code>, obtained during this project's recovery pass (see <code>PROVENANCE.md</code> for the digest proof).</li><li><strong>Permission:</strong> none has been sought from the rights holder. This is a non-commercial preservation project.</li><li><strong>Rights reservation:</strong> content © Omar Waly / Radicalplay.com, its original authors. All other rights in the original content are reserved by its authors; this project asserts no license over it.</li></ul>
+<h3>Liberation Sans Bold</h3>
+<p><code>tools/fonts/LiberationSans-Bold.ttf</code> is shipped for reproducible text rasterization and is licensed under the <strong>SIL Open Font License, Version 1.1</strong>. The license and attribution files travel with the font:</p>
+<ul><li><code>tools/fonts/LICENSE-LiberationSans-Bold.txt</code> — begins "Digitized data copyright (c) 2010 Google Corporation with Reserved Font Arimo, Tinos and Cousine. Copyright (c) 2012 Red Hat, Inc. with Reserved Font Name Liberation", followed by the full SIL OFL 1.1 text.</li><li><code>tools/fonts/AUTHORS-LiberationSans-Bold.txt</code> — lists the contributors (Vishal Vijayraghavan and Pravin Satpute, Red Hat, Inc.; Steve Matteson, original designer, Ascender, Inc.).</li><li><code>tools/fonts/fontconfig.properties</code> — the logical-font mapping used by the pixel gate, not a license file.</li></ul>
+<h3>Third-party test fixture</h3>
+<p><code>reference/external/catb0t/OBJ/mycars/Simple Car.rad</code> is a development car model from catb0t's public <code>need-for-madness-source</code> tree (github.com/catb0t/need-for-madness-source), shipped solely as a byte-parser fixture for the Java and Rust gates; credit to the catb0t project and the original authors, with no rights asserted by this project.</p>
+<h3>mad.jar — original distributed artifact</h3>
+<p><code>mad.jar</code> is the unmodified applet archive used as the ground truth for the port and as the input to the decompilation toolchain. Its SHA-256 is recorded in <code>PROVENANCE.md</code>, along with the Wayback CDX digest proof that the shipped bytes are exactly what the site served from 2006-05-05 through 2007-07-02.</p>
+      </div>
+    </section>
+
+    <section class="doc" id="provenance-doc">
+      <h2>Provenance</h2>
+      <div class="doc-body">
+<p>What is original, where it came from, and what is derived. Every statement below is either computed from the shipped files, sourced from the original's own embedded credits, or describes a reproducible derivation.</p>
+<h3>mad.jar — the original applet archive</h3>
+<ul><li>Original distribution URL: <code>http://www.radicalplay.com/madness/mad.jar</code> (archived host page captured 2007-10-09).</li><li>SHA-256, computed from the shipped <code>mad.jar</code>: <code>70e54d44c65631f3eb014f57398851502cda75dde173d4e06ca37dcd37429f0b</code></li><li>SHA-1: <code>8da705cab492cf07722f661c2e3bd8380a3350f9</code> — base32-encoded the same way the Wayback Machine's CDX digests are, it is <code>RWTQLSVUSLHQO4RPMYOC4O6YHAFDGUHZ</code>, which <strong>equals the CDX digest of every 200-OK capture of that URL</strong>: 2006-05-05, 2006-10-25 and 2007-07-02. The shipped jar is byte-identical to what the site served across that whole span.</li><li>Acquisition: obtained from the Wayback Machine during this project's recovery pass. No permission has been sought from the rights holder; see <code>NOTICES.md</code> for the preservation stance.</li><li>The "2006" dating is the earliest archival record of these exact bytes (the Wayback capture of 2006-05-05, digest-matched); no date is encoded in the jar.</li></ul>
+<h3>assets/ — server-side game data (70 files)</h3>
+<p>The 70 files under <code>assets/</code> (models, stages, music and sounds) are original game data recovered from the game's HTTP server via archived captures; the per-file capture timestamps, byte counts, SHA-256 digests and byte-identity checks against those captures are in <code>assets/PROVENANCE.md</code>, which ships with the tree.</p>
+<ul><li>Recovered by this project's own <code>tools/fetch-assets.sh</code>: it queries the Wayback Machine's CDX API for each resource's captures, takes the earliest 200-OK one (closest to the applet era), downloads the original bytes via the <code>/id_/</code> memento (no wayback decoration), and proves byte-identity by re-encoding each file's SHA-1 in the CDX's base32 alphabet and comparing it against the archive's own digest. <code>assets/PROVENANCE.md</code> is regenerated by that script on every run.</li><li>Acquisition: the archived captures of the same <code>radicalplay.com/madness</code> server tree that served the applet. No permission has been sought from the rights holder; see <code>NOTICES.md</code>.</li></ul>
+<h3>tools/fonts/LiberationSans-Bold.ttf — the stand-in platform font</h3>
+<ul><li>SHA-256, computed from the shipped file: <code>788abee4c806d660e8aee46689dd8540cd4bb98da03dcc9d171ce3efd99a9173</code></li><li>Liberation Sans <strong>2.1.5</strong> (per <code>tools/fonts/fontconfig.properties</code> and the vendored license files), fetched from the upstream release (<code>github.com/liberationfonts/liberation-fonts</code>, tag 2.1.5) by this project's tooling pass. The SIL OFL 1.1 permits bundling with the license file alongside; it ships in the same directory.</li><li>Files beside it: <code>LICENSE-LiberationSans-Bold.txt</code> (SIL OFL 1.1), <code>AUTHORS-LiberationSans-Bold.txt</code> (contributor list), and <code>fontconfig.properties</code> (logical-font → physical-font mapping).</li></ul>
+<h3><code>reference/external/catb0t/OBJ/mycars/Simple Car.rad</code> — third-party test fixture</h3>
+<ul><li>Source: <strong>catb0t's public decompilation of the standalone game</strong>, <code>github.com/catb0t/need-for-madness-source</code> (<code>OBJ/mycars/</code> in that tree); cited in <code>notes/ARCHITECTURE.md</code> as the source of the standalone build. This is a <strong>development car model</strong> from that project, not output of this project's decompiler and not part of the applet's own distributed content.</li><li>Role: a byte-parser fixture — <code>tests/java/TContO.java</code> (<code>realCar</code>) exercises the original car-loading format against these exact bytes, and the Rust mirror <code>nfm-core</code>'s <code>mirror::mirror_suite</code> maps the same pin one-to-one. Both gates need the file at this path; the rest of <code>reference/</code> is regenerated in CI from <code>mad.jar</code>.</li><li>SHA-256, computed from the shipped file: <code>5d319a4cb09ec6ec37bb9d531ed4212367d6ee3c01c3ae835a1fe0c7a97b2d91</code> (2,702 bytes).</li><li>Credit: the catb0t project and the original Need for Madness authors; see <code>NOTICES.md</code>. No rights are asserted over this file by this project.</li></ul>
+<h3>Derived chains (reproducible; not authored content)</h3>
+<ul><li><strong>Decompiled Java sources (<code>reference/vineflower/</code>) are regenerated, not shipped.</strong> CI rebuilds them from <code>mad.jar</code> with <strong>Vineflower 1.10.1</strong>, pinned as <code>ARG VINEFLOWER_VERSION=1.10.1</code> in <code>tools/Dockerfile</code> (the same version is recorded in the private tree's decompiler notes). The toolchain lives in <code>tools/</code>: <code>tools/decompile.sh</code> builds the image and <code>tools/container-decompile.sh</code> runs the pinned decompilers against <code>mad.jar</code> (podman required). CFR 0.152 and Procyon 0.6.0 are cross-checks; the bytecode disassembly is produced with <code>javap</code> (JDK 21 inside the image). The decompiled tree is generated output and is never edited by hand.</li><li><strong><code>resources.pack</code> is derived from <code>assets/</code> and <code>tests/fixtures/xtfont-atlas/</code> by <code>tools/pack.sh</code>.</strong> It is gitignored and never committed; <code>crates/nfm-core/build.rs</code> embeds it into release binaries, so the shipped executable needs no resource files at runtime. Re-run <code>tools/pack.sh</code> after changing anything under <code>assets/</code> or the atlas.</li><li><strong>This repository is derived too.</strong> <code>tools/public-export.sh</code> rebuilds the public tree from the private source of truth; edit the source, not the exported result.</li></ul>
+      </div>
+    </section>
+
+    <section class="doc" id="license-doc">
+      <h2>License (MIT)</h2>
+      <div class="doc-body">
+<p>MIT License</p>
+<p>Copyright (c) 2026 David Volm</p>
+<p>Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:</p>
+<p>The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.</p>
+<p>THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.</p>
+      </div>
+    </section>
+    <!-- END GENERATED NOTICES -->
+    <p class="notices-end">Notices, provenance and license text above are rendered
+      from the canonical NOTICES.md, PROVENANCE.md and LICENSE files.</p>
+  </div>
+
+</div>
+<script src="glue.js"></script>
+</body>
+</html>

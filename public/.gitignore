@@ -1,0 +1,9 @@
+# runtime and derived artifacts — never committed in the public repo
+/target
+/resources.pack
+nfm-cookies.txt
+nfm.log*
+nfm-probe.*
+render/
+.cross-deck.toml
+.DS_Store

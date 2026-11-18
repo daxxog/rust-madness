@@ -1,0 +1,245 @@
+# xtfont-atlas - the shared text ground truth of the pixel platform.
+#
+# WHY: the original asks only for new Font("SansSerif", 1, 13) and
+# new Font("SansSerif", 1, 11) (every site in xtGraphics.java). The
+# container maps logical SansSerif bold onto the shipped
+# tools/fonts/LiberationSans-Bold.ttf via
+# tools/fonts/fontconfig.properties, so THIS raster is reproducible
+# inside tools/pixel-tests.Dockerfile and nowhere else guaranteed.
+# Era-exactness is approximate (2005 JRE platform fonts are gone);
+# reproducibility is exact and is what the pin protects.
+#
+# FORMAT xtfont-atlas/1 (plain ASCII, parse without Java):
+#   - '#' lines are comments.
+#   - 'key=value' lines below are the manifest; unknown keys are
+#     ignorable additions.
+#   - 'glyph <pt> <codepoint_dec> <advance_px> <cell_dx_px>' rows:
+#     one per codepoint per size. The grid cell is
+#     col = codepoint - 32, row = 0 for 13pt, 1 for 11pt;
+#     its pixel origin is (grid_x + col*cell_width,
+#     grid_y + row*cell_height). The glyph was drawn at
+#     (cell_x + cell_dx, cell_y + baseline) with drawString.
+#   - advance is the REAL java.awt.FontMetrics.charWidth(codepoint),
+#     i.e. the integer pen advance used by stringWidth.
+#   - pixels are black glyphs on an opaque white TYPE_INT_RGB
+#     canvas; text antialiasing is the toolkit default.
+format=xtfont-atlas/1
+png=atlas.png
+png_width=1900
+png_height=44
+png_type=INT_RGB
+cell_width=20
+cell_height=22
+grid_x=0
+grid_y=0
+columns=95
+rows=2
+codepoint_min=32
+codepoint_max=126
+baseline=16
+glyph_count=190
+row0_size=13
+row0_ascent=12
+row0_descent=3
+row0_leading=1
+row0_max_advance=17
+row0_height=16
+row1_size=11
+row1_ascent=10
+row1_descent=3
+row1_leading=0
+row1_max_advance=15
+row1_height=13
+sha256_ttf=788abee4c806d660e8aee46689dd8540cd4bb98da03dcc9d171ce3efd99a9173
+ttf=tools/fonts/LiberationSans-Bold.ttf
+sha256_png=0625138d319b96df6245e552955f770a475db02a5e76baf36351b75ab606522d
+glyph 13 32 4 1
+glyph 13 33 4 1
+glyph 13 34 6 1
+glyph 13 35 7 1
+glyph 13 36 7 1
+glyph 13 37 10 1
+glyph 13 38 9 1
+glyph 13 39 3 1
+glyph 13 40 4 1
+glyph 13 41 4 1
+glyph 13 42 5 1
+glyph 13 43 8 1
+glyph 13 44 4 1
+glyph 13 45 4 1
+glyph 13 46 4 1
+glyph 13 47 4 1
+glyph 13 48 7 1
+glyph 13 49 7 1
+glyph 13 50 7 1
+glyph 13 51 7 1
+glyph 13 52 7 1
+glyph 13 53 7 1
+glyph 13 54 7 1
+glyph 13 55 7 1
+glyph 13 56 7 1
+glyph 13 57 7 1
+glyph 13 58 4 1
+glyph 13 59 4 1
+glyph 13 60 8 1
+glyph 13 61 8 1
+glyph 13 62 8 1
+glyph 13 63 8 1
+glyph 13 64 13 1
+glyph 13 65 9 1
+glyph 13 66 9 1
+glyph 13 67 9 1
+glyph 13 68 9 1
+glyph 13 69 8 1
+glyph 13 70 8 1
+glyph 13 71 10 1
+glyph 13 72 9 1
+glyph 13 73 4 1
+glyph 13 74 7 1
+glyph 13 75 9 1
+glyph 13 76 8 1
+glyph 13 77 11 1
+glyph 13 78 9 1
+glyph 13 79 10 1
+glyph 13 80 9 1
+glyph 13 81 10 1
+glyph 13 82 9 1
+glyph 13 83 9 1
+glyph 13 84 8 1
+glyph 13 85 9 1
+glyph 13 86 9 1
+glyph 13 87 13 1
+glyph 13 88 9 1
+glyph 13 89 8 1
+glyph 13 90 7 1
+glyph 13 91 4 1
+glyph 13 92 4 1
+glyph 13 93 4 1
+glyph 13 94 8 1
+glyph 13 95 7 1
+glyph 13 96 4 1
+glyph 13 97 8 1
+glyph 13 98 8 1
+glyph 13 99 7 1
+glyph 13 100 8 1
+glyph 13 101 8 1
+glyph 13 102 4 1
+glyph 13 103 8 1
+glyph 13 104 8 1
+glyph 13 105 4 1
+glyph 13 106 4 1
+glyph 13 107 7 1
+glyph 13 108 4 1
+glyph 13 109 12 1
+glyph 13 110 8 1
+glyph 13 111 8 1
+glyph 13 112 8 1
+glyph 13 113 8 1
+glyph 13 114 5 1
+glyph 13 115 6 1
+glyph 13 116 4 1
+glyph 13 117 8 1
+glyph 13 118 7 1
+glyph 13 119 11 1
+glyph 13 120 8 1
+glyph 13 121 7 1
+glyph 13 122 7 1
+glyph 13 123 5 1
+glyph 13 124 3 1
+glyph 13 125 5 1
+glyph 13 126 8 1
+glyph 11 32 3 1
+glyph 11 33 3 1
+glyph 11 34 5 1
+glyph 11 35 6 1
+glyph 11 36 6 1
+glyph 11 37 9 1
+glyph 11 38 8 1
+glyph 11 39 3 1
+glyph 11 40 4 1
+glyph 11 41 4 1
+glyph 11 42 4 1
+glyph 11 43 6 1
+glyph 11 44 3 1
+glyph 11 45 4 1
+glyph 11 46 3 1
+glyph 11 47 3 1
+glyph 11 48 6 1
+glyph 11 49 6 1
+glyph 11 50 6 1
+glyph 11 51 6 1
+glyph 11 52 6 1
+glyph 11 53 6 1
+glyph 11 54 6 1
+glyph 11 55 6 1
+glyph 11 56 6 1
+glyph 11 57 6 1
+glyph 11 58 3 1
+glyph 11 59 3 1
+glyph 11 60 6 1
+glyph 11 61 6 1
+glyph 11 62 6 1
+glyph 11 63 7 1
+glyph 11 64 11 1
+glyph 11 65 8 1
+glyph 11 66 7 1
+glyph 11 67 8 1
+glyph 11 68 7 1
+glyph 11 69 6 1
+glyph 11 70 6 1
+glyph 11 71 8 1
+glyph 11 72 7 1
+glyph 11 73 3 1
+glyph 11 74 6 1
+glyph 11 75 7 1
+glyph 11 76 7 1
+glyph 11 77 10 1
+glyph 11 78 7 1
+glyph 11 79 8 1
+glyph 11 80 7 1
+glyph 11 81 8 1
+glyph 11 82 7 1
+glyph 11 83 7 1
+glyph 11 84 7 1
+glyph 11 85 7 1
+glyph 11 86 8 1
+glyph 11 87 10 1
+glyph 11 88 7 1
+glyph 11 89 7 1
+glyph 11 90 7 1
+glyph 11 91 4 1
+glyph 11 92 3 1
+glyph 11 93 4 1
+glyph 11 94 6 1
+glyph 11 95 6 1
+glyph 11 96 4 1
+glyph 11 97 6 1
+glyph 11 98 7 1
+glyph 11 99 6 1
+glyph 11 100 7 1
+glyph 11 101 7 1
+glyph 11 102 4 1
+glyph 11 103 7 1
+glyph 11 104 7 1
+glyph 11 105 3 1
+glyph 11 106 3 1
+glyph 11 107 7 1
+glyph 11 108 3 1
+glyph 11 109 11 1
+glyph 11 110 7 1
+glyph 11 111 7 1
+glyph 11 112 7 1
+glyph 11 113 7 1
+glyph 11 114 5 1
+glyph 11 115 7 1
+glyph 11 116 4 1
+glyph 11 117 7 1
+glyph 11 118 6 1
+glyph 11 119 10 1
+glyph 11 120 6 1
+glyph 11 121 6 1
+glyph 11 122 6 1
+glyph 11 123 4 1
+glyph 11 124 3 1
+glyph 11 125 4 1
+glyph 11 126 6 1

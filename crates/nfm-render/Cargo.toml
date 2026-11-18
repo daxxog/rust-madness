@@ -1,0 +1,12 @@
+[package]
+name = "nfm-render"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+nfm-core.workspace = true
+minifb = "0.29"
+cpal = "0.18"
+# The Steam Deck pad (batch D2b): the same 0.11 line the D1 deck-probe
+# used. Play mode only — no other mode ever constructs the adapter.
+gilrs = "0.11"

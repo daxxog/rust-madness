@@ -1,0 +1,245 @@
+# audio.toml - the eleven stage tracks (tests/fixtures/toml/README.md).
+#
+# Single source of truth for TAudioGoldens (Java) and the Rust AudioBus
+# tests. Transcribed verbatim from tests/java/TAudioGoldens.java (the class
+# is the gate-proven record); values are immutable once the suite re-freezes.
+#
+# SOURCES
+#   - per-stage RadicalMod args: reference/vineflower/xtGraphics.java:1249-1324
+#     (lines cited per row below). The ctor is
+#     `new RadicalMod(path, gain, rate, bpm, app)`; RadicalMod.java:39 forwards
+#     `new ModSlayer(mod, var3, var2, var4)` and ModSlayer.java:505-512 is
+#     `(Mod, samplingrate, gain, bpm)`, so the 2nd arg is the GAIN and the 3rd
+#     the RATE (verified in B1/B2, documented in TAudioGoldens' class comment).
+#   - decode: Mod + ModSlayer -> turnbytes() (ModSlayer.java:553-621) ->
+#     the exact byte[] RadicalMod's ctor stores in stream
+#     (RadicalMod.java:41-43).
+#   - mix: the device-free per-call pump. play() -> AudioPlayer.player.start()
+#     (RadicalMod.java:63-76, :70) -> 8u40 AudioDevice.openChannel wraps the
+#     stream in `new BufferedInputStream(in, 1024)` (bytecode offsets 242-253)
+#     -> 1024-byte call = 1024 ULAW samples. SuperStream.read fills exactly
+#     len and resets on EOF (SuperStream.java:18-31), so one pass is
+#     ceil(decode_bytes / 1024) calls = ceil(...) * 1024 bytes.
+#   - bpm_samples: startplaying's `samplingrate / (24*bpm/60)`, integer
+#     division (ModSlayer.java:784); read BEFORE turnbytes because Fxx
+#     retunes it mid-song (get_track case 15, ModSlayer.java:759-769).
+#
+# STAGES 4 AND 7 share the args (300, 7500, 125) but are DIFFERENT ASSETS:
+# stage4.zipo and stage7.zipo decode to different lengths and md5s.
+#
+# DEVICE QUIRK (B13 §1.2, §8): the 8u40 fallback format is hardcoded
+# `new AudioFormat(ULAW, 8000.0f, 8, 1, 1, 8000.0f, true)` (offsets
+# 303-318), so playback ignores the render rate: stage2/stage11 (9000) run
+# ~12.5% fast and 7900/8100/8400/8500 land slightly off. Original behavior,
+# pinned on this build, mirrored - not improved.
+
+# One row per stage, in stage1..stage11 order (the `id` key carries the
+# pin prefix; TAudioGoldens pins the ordered id list as a shape pin).
+# Keys:
+#   path, gain, rate, bpm      RadicalMod ctor args
+#   decode_bytes, decode_md5   turnbytes() golden (pin ids _decode_len/_decode_md5)
+#   mix_calls, mix_samples     ceil(decode_bytes/1024) and calls*1024 (pin _mix_samples)
+#   mix_md5                    md5 of the concatenated 1024-byte call payloads
+#   num_tracks                 mod.numtracks == slayer.numtracks (pin _tracks/_slayer_tracks)
+#   num_patterns               mod.getNumPatterns() and mod.patterns.length (pin _numpatterns/_pattern_rows)
+#   song_length_patterns       mod.song_length_patterns (pin _song_length)
+#   song_repeat_patterns       mod.song_repeat_patterns (pin _song_repeat)
+#   instruments                mod.insts.length (pin _instruments; every stage zipo is 31-instrument)
+
+[[stage]]
+id = "stage1"
+path = "music/stage1.zipo"           # xtGraphics.java:1250
+gain = 350                           # :1250
+rate = 8400                          # :1250
+bpm = 135                            # :1250
+decode_bytes = 1191330
+decode_md5 = "f1f2a25eb468517faa2218cf1712395f"   # the standing Java==Rust digest
+mix_calls = 1164
+mix_samples = 1191936
+mix_md5 = "469e28bc8d70c72beb16d0973c13c0c4"
+num_tracks = 4
+num_patterns = 20
+song_length_patterns = 20
+song_repeat_patterns = 0
+instruments = 31
+bpm_samples = 155
+
+[[stage]]
+id = "stage2"
+path = "music/stage2.zipo"           # xtGraphics.java:1257
+gain = 370
+rate = 9000
+bpm = 145
+decode_bytes = 2232930
+decode_md5 = "b1fc968bc99181af36f0cce611a271e8"
+mix_calls = 2181
+mix_samples = 2233344
+mix_md5 = "b36eb8e99c34ef5b01175b7bde1aa81b"
+num_tracks = 4
+num_patterns = 44
+song_length_patterns = 73            # 73 > 44: the order list repeats patterns
+song_repeat_patterns = 0
+instruments = 31
+bpm_samples = 155
+
+[[stage]]
+id = "stage3"
+path = "music/stage3.zipo"           # xtGraphics.java:1264
+gain = 350
+rate = 8500
+bpm = 145
+decode_bytes = 1514604
+decode_md5 = "80e004e866193f4f2d25e1912ad552c4"
+mix_calls = 1480
+mix_samples = 1515520
+mix_md5 = "1d72da809628bc4b73e2d05ae5ca01a9"
+num_tracks = 4
+num_patterns = 20
+song_length_patterns = 30
+song_repeat_patterns = 0
+instruments = 31
+bpm_samples = 146
+
+[[stage]]
+id = "stage4"
+path = "music/stage4.zipo"           # xtGraphics.java:1271
+gain = 300                           # same args as stage7, different asset
+rate = 7500
+bpm = 125
+decode_bytes = 1045824               # Fxx retunes: 5*150 + 7573*138 (B13 §3)
+decode_md5 = "70f528cf4eb46fb7422447d0e1cfb715"
+mix_calls = 1022
+mix_samples = 1046528
+mix_md5 = "a6cf3a0aff9faf6d3d2e884c88b48d9c"
+num_tracks = 4
+num_patterns = 17
+song_length_patterns = 22
+song_repeat_patterns = 0
+instruments = 31
+bpm_samples = 150                    # drops to 138 mid-song (Fxx)
+
+[[stage]]
+id = "stage5"
+path = "music/stage5.zipo"           # xtGraphics.java:1278
+gain = 250
+rate = 7900
+bpm = 125
+decode_bytes = 1760436
+decode_md5 = "fc420428b90b290ed32a53068ecd6b2d"
+mix_calls = 1720
+mix_samples = 1761280
+mix_md5 = "0d9b2542b77eb698b2ff9e57dfa164bf"
+num_tracks = 4
+num_patterns = 15
+song_length_patterns = 29
+song_repeat_patterns = 0
+instruments = 31
+bpm_samples = 158
+
+[[stage]]
+id = "stage6"
+path = "music/stage6.zipo"           # xtGraphics.java:1285
+gain = 760
+rate = 7900
+bpm = 125
+decode_bytes = 1843860
+decode_md5 = "d23e9cfa03e7d6ee438b49e89de5df21"
+mix_calls = 1801
+mix_samples = 1844224
+mix_md5 = "92196e4103d603e53262b91f164a12b8"
+num_tracks = 4
+num_patterns = 25
+song_length_patterns = 32
+song_repeat_patterns = 0
+instruments = 31
+bpm_samples = 158
+
+[[stage]]
+id = "stage7"
+path = "music/stage7.zipo"           # xtGraphics.java:1292
+gain = 300                           # same args as stage4, different asset
+rate = 7500
+bpm = 125
+decode_bytes = 1613700
+decode_md5 = "1dcce97f798fbb8c69a2ca18abcff850"
+mix_calls = 1576
+mix_samples = 1613824
+mix_md5 = "cb0f5b2c7f6722d0252b40cc82ec468c"
+num_tracks = 4
+num_patterns = 11
+song_length_patterns = 24
+song_repeat_patterns = 0
+instruments = 31
+bpm_samples = 150
+
+[[stage]]
+id = "stage8"
+path = "music/stage8.zipo"           # xtGraphics.java:1299
+gain = 400
+rate = 7900
+bpm = 125
+decode_bytes = 1437086               # Fxx retunes: 5*158 + 10561*136 (B13 §3)
+decode_md5 = "33df8db3424b0d4678b01759194ca3b1"
+mix_calls = 1404
+mix_samples = 1437696
+mix_md5 = "654dd497471c5a4aac57550e05f79f51"
+num_tracks = 4
+num_patterns = 19
+song_length_patterns = 50
+song_repeat_patterns = 0
+instruments = 31
+bpm_samples = 158
+
+[[stage]]
+id = "stage9"
+path = "music/stage9.zipo"           # xtGraphics.java:1306
+gain = 300
+rate = 7900
+bpm = 125
+decode_bytes = 668340
+decode_md5 = "b286108548a298666f1c800884d63cb3"
+mix_calls = 653
+mix_samples = 668672
+mix_md5 = "d43ae00eeb9061e021ecdf2833f4b97b"
+num_tracks = 4
+num_patterns = 9
+song_length_patterns = 11
+song_repeat_patterns = 0
+instruments = 31
+bpm_samples = 158
+
+[[stage]]
+id = "stage10"
+path = "music/stage10.zipo"          # xtGraphics.java:1313
+gain = 550
+rate = 8100
+bpm = 145
+decode_bytes = 1568754
+decode_md5 = "11400fca0a9c27048283ff7483b28601"
+mix_calls = 1532
+mix_samples = 1568768
+mix_md5 = "7f84c5496edac088fe6a45aaa9f36df1"
+num_tracks = 4
+num_patterns = 31
+song_length_patterns = 33
+song_repeat_patterns = 0
+instruments = 31
+bpm_samples = 139
+
+[[stage]]
+id = "stage11"
+path = "music/stage11.zipo"          # xtGraphics.java:1320
+gain = 550
+rate = 9000
+bpm = 145
+decode_bytes = 1965090
+decode_md5 = "0e37a67f346715836223bb1ea0332c75"
+mix_calls = 1920
+mix_samples = 1966080
+mix_md5 = "3648afea431f9410f55a856a66dff8f5"
+num_tracks = 4
+num_patterns = 40
+song_length_patterns = 66
+song_repeat_patterns = 0
+instruments = 31
+bpm_samples = 155
