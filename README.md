@@ -111,4 +111,28 @@ artifact origins and derived files.
 
 ## Play in the browser
 
-Coming soon: a WebAssembly host is planned. There is no browser build yet.
+No install needed: the game runs as a self-contained WebAssembly
+module at
+
+    https://daxxog.github.io/rust-madness/
+
+The whole play page — engine, assets and the glyph atlas — is one
+~2 MB `.wasm` with zero JavaScript framework glue. Sound and music
+play through the browser's audio (a click unlocks it, per the
+autoplay policy), progress persists in `localStorage` between
+visits, and the canvas has an aspect-preserved fullscreen toggle.
+
+The WASM host is `crates/nfm-web` (raw wasm imports, no
+wasm-bindgen): build it with `tools/pack.sh` then
+`cargo build --release --target wasm32-unknown-unknown -p nfm-web`
+and serve `public/site/` beside the renamed module (the site
+README has the full recipe).
+
+## Releases
+
+Tagged `v*` pushes build everything: a release runs the entire
+gate battery first, then compiles the Apple-silicon and Intel Mac
+binaries, the Linux/Steam Deck binary, and the wasm — publishing
+the tarballs to GitHub Releases and the play page to Pages. Each
+tarball is a single self-contained binary (assets embedded; your
+saves land beside the executable as `nfm-cookies.txt`).
