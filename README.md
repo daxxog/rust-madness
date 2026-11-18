@@ -1,5 +1,7 @@
 # rust-madness — a Rust port of the 2006 Java applet Need for Madness
 
+[![CI](https://github.com/daxxog/rust-madness/actions/workflows/ci.yml/badge.svg)](https://github.com/daxxog/rust-madness/actions/workflows/ci.yml)
+
 <p align="center">
   <img src="site/hello.gif" alt="Need for Madness — the game's own opening screen">
 </p>
@@ -140,3 +142,7 @@ binaries, the Linux/Steam Deck binary, and the wasm — publishing
 the tarballs to GitHub Releases and the play page to Pages. Each
 tarball is a single self-contained binary (assets embedded; your
 saves land beside the executable as `nfm-cookies.txt`).
+
+## Stargazers over time
+
+[![Star History Chart](https://api.star-history.com/svg?repos=daxxog/rust-madness&type=Date)](https://star-history.com/#daxxog/rust-madness&Date)
